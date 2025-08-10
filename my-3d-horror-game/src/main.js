@@ -1,3 +1,12 @@
+// 効果音
+const hitSound = new Audio('assets/sounds/hit.mp3');
+// アイテム定義
+const ITEM_NONE = 0;
+const ITEM_CRYSTAL = 1; // 青クリスタル
+const ITEM_BOMB = 2;    // 黄色爆弾
+let items = [];
+let spreadShotActive = false;
+let spreadShotEndTime = 0;
 // バージョン番号（コミットごとに手動で増やしてください）
 const GAME_VERSION = 'v1.0.1';
 
@@ -58,28 +67,66 @@ function spawnEnemy() {
     });
 }
 
-function shootBullet() {
+function shootBullet(angle = 0) {
+    // angle: 0で真上、負で左、正で右
+    const speed = 10;
+    const vx = Math.sin(angle) * speed;
+    const vy = Math.cos(angle) * speed;
     bullets.push({
         x: player.x + player.w / 2 - 4,
         y: player.y,
         w: 8,
         h: 16,
-        speed: 10
+        speed: speed,
+        vx: vx,
+        vy: -vy
     });
 }
 
 function update(dt) {
+    // アイテム移動
+    items.forEach(item => item.y += item.vy);
+    items = items.filter(item => item.y < canvas.height);
+
+    // アイテム取得判定
+    items.forEach((item, ii) => {
+        if (player.x < item.x + item.w && player.x + player.w > item.x && player.y < item.y + item.h && player.y + player.h > item.y) {
+            if (item.type === ITEM_CRYSTAL) {
+                spreadShotActive = true;
+                spreadShotEndTime = performance.now() + 6000; // 6秒間
+            } else if (item.type === ITEM_BOMB) {
+                // 画面上の敵を全滅
+                enemies.forEach(e => e.y = canvas.height + 1000);
+            }
+            items[ii].y = canvas.height + 1000; // 取得したら消す
+        }
+    });
+
+    // 扇状ショット中の効果終了
+    if (spreadShotActive && performance.now() > spreadShotEndTime) {
+        spreadShotActive = false;
+    }
     if (!player.alive) return;
 
     // 弾発射（0.2秒ごと）
     if (performance.now() - lastBulletTime > 200) {
-        shootBullet();
+        if (spreadShotActive) {
+            // 扇状に3発
+            shootBullet(0);
+            shootBullet(-0.3);
+            shootBullet(0.3);
+        } else {
+            shootBullet(0);
+        }
         lastBulletTime = performance.now();
     }
 
     // 弾移動
-    bullets.forEach(b => b.y -= b.speed);
-    bullets = bullets.filter(b => b.y + b.h > 0);
+    bullets.forEach(b => {
+        b.x += b.vx || 0;
+        b.y += b.vy !== undefined ? b.vy : -b.speed;
+    });
+    bullets = bullets.filter(b => b.y + b.h > 0 && b.x + b.w > 0 && b.x < canvas.width);
 
     // 敵出現（0.7秒ごと）
     if (performance.now() - lastEnemyTime > 700) {
@@ -95,6 +142,11 @@ function update(dt) {
     bullets.forEach((b, bi) => {
         enemies.forEach((e, ei) => {
             if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
+                // 効果音再生
+                try {
+                    hitSound.currentTime = 0;
+                    hitSound.play();
+                } catch(e) {}
                 // 吹き出しエフェクト追加
                 effects.push({
                     x: e.x + e.w/2,
@@ -102,6 +154,18 @@ function update(dt) {
                     text: 'うわああああ',
                     time: performance.now()
                 });
+                // アイテム出現（10%の確率）
+                if (Math.random() < 0.1) {
+                    const itemType = Math.random() < 0.5 ? ITEM_CRYSTAL : ITEM_BOMB;
+                    items.push({
+                        x: e.x + e.w/2 - 16,
+                        y: e.y + e.h/2 - 16,
+                        w: 32,
+                        h: 32,
+                        type: itemType,
+                        vy: 2
+                    });
+                }
                 bullets[bi].y = -1000; // 画面外に
                 enemies[ei].y = canvas.height + 1000; // 画面外に
                 score++;
@@ -119,6 +183,47 @@ function update(dt) {
 }
 
 function render() {
+    // アイテム
+    items.forEach(item => {
+        if (item.type === ITEM_CRYSTAL) {
+            // 青いクリスタル
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(item.x + item.w/2, item.y + item.h/2, item.w/2, 0, Math.PI*2);
+            ctx.fillStyle = '#33f';
+            ctx.globalAlpha = 0.8;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.font = '18px sans-serif';
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.fillText('C', item.x + item.w/2, item.y + item.h/2 + 7);
+            ctx.restore();
+        } else if (item.type === ITEM_BOMB) {
+            // 黄色い爆弾
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(item.x + item.w/2, item.y + item.h/2, item.w/2, 0, Math.PI*2);
+            ctx.fillStyle = '#ff0';
+            ctx.globalAlpha = 0.8;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.font = '18px sans-serif';
+            ctx.fillStyle = '#000';
+            ctx.textAlign = 'center';
+            ctx.fillText('B', item.x + item.w/2, item.y + item.h/2 + 7);
+            ctx.restore();
+        }
+    });
+
+    // 扇状ショット中の表示
+    if (spreadShotActive) {
+        ctx.save();
+        ctx.font = '20px sans-serif';
+        ctx.fillStyle = '#3cf';
+        ctx.fillText('扇状ショット!', canvas.width - 160, 40);
+        ctx.restore();
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // 背景
