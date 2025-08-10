@@ -89,7 +89,7 @@ function update(dt) {
                 // 吹き出しエフェクト追加
                 effects.push({
                     x: e.x + e.w/2,
-                    y: e.y,
+                    y: e.y - 30, // 敵の上に表示
                     text: 'うわああああ',
                     time: performance.now()
                 });
@@ -137,14 +137,14 @@ function render() {
 
     // 吹き出しエフェクト
     const now = performance.now();
-    effects = effects.filter(e => now - e.time < 700);
+    effects = effects.filter(e => now - e.time < 1000); // 1秒表示
     effects.forEach(e => {
         ctx.save();
-        ctx.font = 'bold 32px sans-serif';
+        ctx.font = 'bold 44px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#fff';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 4;
+        ctx.fillStyle = '#ff0';
+        ctx.strokeStyle = '#f00';
+        ctx.lineWidth = 6;
         ctx.strokeText(e.text, e.x, e.y);
         ctx.fillText(e.text, e.x, e.y);
         ctx.restore();
