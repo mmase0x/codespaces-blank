@@ -375,6 +375,31 @@ function handlePointerUp(e) {
     dragging = false;
 }
 
+// ポインター押下時
+function handlePointerDown(e) {
+    e.preventDefault();
+    dragging = true;
+    let pointerX;
+    if (e.touches) {
+        pointerX = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    } else {
+        pointerX = e.clientX - canvas.getBoundingClientRect().left;
+    }
+    dragOffsetX = pointerX - player.x;
+}
+
+// ポインター移動時
+function handlePointerMove(e) {
+    if (!dragging) return;
+    let pointerX;
+    if (e.touches) {
+        pointerX = e.touches[0].clientX - canvas.getBoundingClientRect().left;
+    } else {
+        pointerX = e.clientX - canvas.getBoundingClientRect().left;
+    }
+    player.x = pointerX - dragOffsetX;
+}
+
 canvas.addEventListener('mousedown', handlePointerDown);
 canvas.addEventListener('mousemove', handlePointerMove);
 canvas.addEventListener('mouseup', handlePointerUp);
