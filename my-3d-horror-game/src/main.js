@@ -24,11 +24,13 @@ import { GAME_VERSION } from './version.js';
 let dragging = false;
 let dragOffsetX = 0;
 
+
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 600;
+const restartBtn = document.getElementById('restartBtn');
 
 
 // 画像読み込み
@@ -52,6 +54,8 @@ const player = {
 let bullets = [];
 let enemies = [];
 let score = 0;
+let highScore = Number(localStorage.getItem('highScore') || 0);
+let showHighScoreMsg = false;
 let lastEnemyTime = 0;
 let lastBulletTime = 0;
 let isGameOver = false;
@@ -78,12 +82,17 @@ const BOSS_APPEAR_INTERVAL = 15000; // 15秒ごとに出現
 const BOSS_HP = 10;
 const BOSS_BULLET_INTERVAL = 900; // ボス弾発射間隔(ms)
 
+// ボス警告メッセージ用
+let bossWarningShown = false;
+let bossWarningTime = 0;
+
 function resetGame() {
     player.x = canvas.width / 2;
     player.alive = true;
     bullets = [];
     enemies = [];
     score = 0;
+    showHighScoreMsg = false;
     lastEnemyTime = 0;
     lastBulletTime = 0;
     isGameOver = false;
@@ -120,6 +129,15 @@ function shootBullet(angle = 0) {
 }
 
 function update(dt) {
+    // ボス警告メッセージ表示管理
+    if (!boss && !bossWarningShown && performance.now() - bossAppearTime > BOSS_APPEAR_INTERVAL - 10000) {
+        bossWarningShown = true;
+        bossWarningTime = performance.now();
+    }
+    // ボス出現時に警告リセット
+    if (boss) {
+        bossWarningShown = false;
+    }
     // アイテム移動
     items.forEach(item => item.y += item.vy);
     items = items.filter(item => item.y < canvas.height && item.y > -100 && item.type !== undefined);
@@ -288,6 +306,18 @@ function update(dt) {
 }
 
 function render() {
+    // ボス警告メッセージ
+    if (bossWarningShown && performance.now() - bossWarningTime < 2000) {
+        ctx.save();
+        ctx.font = 'bold 44px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff0';
+        ctx.strokeStyle = '#f00';
+        ctx.lineWidth = 8;
+        ctx.strokeText('ボス接近中！', canvas.width/2, 120);
+        ctx.fillText('ボス接近中！', canvas.width/2, 120);
+        ctx.restore();
+    }
 
     // 画面クリア
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -496,10 +526,27 @@ window.addEventListener('pointerdown', playBGM, { once: true });
     ctx.font = '24px sans-serif';
 
     ctx.fillText('SCORE: ' + score, 20, 40);
+    // ハイスコア
+    ctx.font = '20px sans-serif';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText('HIGH SCORE: ' + (typeof highScore !== 'undefined' ? highScore : 0), 20, 70);
     // バージョン番号
     ctx.font = '16px sans-serif';
     ctx.fillStyle = '#aaa';
-    ctx.fillText('ver: ' + GAME_VERSION, 22, 65);
+    ctx.fillText('ver: ' + GAME_VERSION, 22, 95);
+
+    // ハイスコア更新メッセージ
+    if (typeof isGameOver !== 'undefined' && isGameOver && typeof showHighScoreMsg !== 'undefined' && showHighScoreMsg) {
+        ctx.save();
+        ctx.font = 'bold 48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff0';
+        ctx.strokeStyle = '#f00';
+        ctx.lineWidth = 8;
+        ctx.strokeText('ハイスコア更新!!', canvas.width/2, canvas.height/2 - 100);
+        ctx.fillText('ハイスコア更新!!', canvas.width/2, canvas.height/2 - 100);
+        ctx.restore();
+    }
 
     // 吹き出しエフェクト
     const now = performance.now();
@@ -592,11 +639,28 @@ function gameLoop(timestamp) {
     render();
     if (!isGameOver) {
         requestAnimationFrame(gameLoop);
+    } else {
+        // ハイスコア更新判定
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+            showHighScoreMsg = true;
+        }
+        // ゲームオーバー時にボタン表示
+        restartBtn.style.display = 'block';
     }
 }
 
 window.onload = () => {
+
     resetGame();
     window._lastTime = undefined;
     requestAnimationFrame(gameLoop);
+    restartBtn.style.display = 'none';
+    restartBtn.onclick = () => {
+        restartBtn.style.display = 'none';
+        resetGame();
+        window._lastTime = undefined;
+        requestAnimationFrame(gameLoop);
+    };
 };
