@@ -1,5 +1,11 @@
-// 効果音
-const hitSound = new Audio('assets/sounds/hit.mp3');
+// 効果音（毎回新インスタンスで再生）
+function playHitSound() {
+    try {
+        const s = new Audio('assets/sounds/hit.mp3');
+        s.volume = 0.7;
+        s.play();
+    } catch(e) {}
+}
 // アイテム定義
 const ITEM_NONE = 0;
 const ITEM_CRYSTAL = 1; // 青クリスタル
@@ -8,7 +14,7 @@ let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
 // バージョン番号（コミットごとに手動で増やしてください）
-const GAME_VERSION = 'v1.0.1';
+const GAME_VERSION = 'v1.0.2';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
@@ -142,11 +148,7 @@ function update(dt) {
     bullets.forEach((b, bi) => {
         enemies.forEach((e, ei) => {
             if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
-                // 効果音再生
-                try {
-                    hitSound.currentTime = 0;
-                    hitSound.play();
-                } catch(e) {}
+                playHitSound();
                 // 吹き出しエフェクト追加
                 effects.push({
                     x: e.x + e.w/2,
