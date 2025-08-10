@@ -17,7 +17,12 @@ const ITEM_BOMB = 2;    // 黄色爆弾
 let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
+
 import { GAME_VERSION } from './version.js';
+
+// ドラッグ操作用
+let dragging = false;
+let dragOffsetX = 0;
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
@@ -408,7 +413,21 @@ canvas.addEventListener('touchstart', handlePointerDown);
 canvas.addEventListener('touchmove', handlePointerMove);
 canvas.addEventListener('touchend', handlePointerUp);
 
+
+// メインループ関数
+function gameLoop(timestamp) {
+    if (!window._lastTime) window._lastTime = timestamp;
+    const dt = timestamp - window._lastTime;
+    window._lastTime = timestamp;
+    update(dt);
+    render();
+    if (!isGameOver) {
+        requestAnimationFrame(gameLoop);
+    }
+}
+
 window.onload = () => {
     resetGame();
+    window._lastTime = undefined;
     requestAnimationFrame(gameLoop);
 };
