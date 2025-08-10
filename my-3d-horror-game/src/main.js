@@ -14,7 +14,7 @@ let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
 // バージョン番号（コミットごとに手動で増やしてください）
-const GAME_VERSION = 'v1.0.3';
+const GAME_VERSION = 'v1.0.4';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
@@ -92,7 +92,7 @@ function shootBullet(angle = 0) {
 function update(dt) {
     // アイテム移動
     items.forEach(item => item.y += item.vy);
-    items = items.filter(item => item.y < canvas.height);
+    items = items.filter(item => item.y < canvas.height && item.y > -100 && item.type !== undefined);
 
     // アイテム取得判定
     items.forEach((item, ii) => {
@@ -132,7 +132,7 @@ function update(dt) {
         b.x += b.vx || 0;
         b.y += b.vy !== undefined ? b.vy : -b.speed;
     });
-    bullets = bullets.filter(b => b.y + b.h > 0 && b.x + b.w > 0 && b.x < canvas.width);
+    bullets = bullets.filter(b => b.y + b.h > 0 && b.y < canvas.height && b.x + b.w > 0 && b.x < canvas.width && !isNaN(b.x) && !isNaN(b.y));
 
     // 敵出現（0.7秒ごと）
     if (performance.now() - lastEnemyTime > 700) {
@@ -141,7 +141,7 @@ function update(dt) {
     }
     // 敵移動
     enemies.forEach(e => e.y += e.speed);
-    enemies = enemies.filter(e => e.y < canvas.height + e.h);
+    enemies = enemies.filter(e => e.y < canvas.height + e.h && e.y > -100 && e.w > 0 && e.h > 0);
 
 
     // 衝突判定（弾と敵）
@@ -327,7 +327,7 @@ window.addEventListener('pointerdown', playBGM, { once: true });
 
     // 吹き出しエフェクト
     const now = performance.now();
-    effects = effects.filter(e => now - e.time < 1000); // 1秒表示
+    effects = effects.filter(e => now - e.time < 1000 && e.x !== undefined && e.y !== undefined);
     effects.forEach(e => {
         ctx.save();
         ctx.font = 'bold 44px sans-serif';
@@ -356,10 +356,14 @@ window.addEventListener('pointerdown', playBGM, { once: true });
 
 let lastTime = 0;
 function gameLoop(ts) {
-    const dt = ts - lastTime;
-    lastTime = ts;
-    if (!isGameOver) update(dt);
-    render();
+    try {
+        const dt = ts - lastTime;
+        lastTime = ts;
+        if (!isGameOver) update(dt);
+        render();
+    } catch (e) {
+        console.error('Game error:', e);
+    }
     requestAnimationFrame(gameLoop);
 }
 
