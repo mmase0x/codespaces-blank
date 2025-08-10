@@ -1,11 +1,18 @@
 // バージョン番号（コミットごとに手動で増やしてください）
-const GAME_VERSION = 'v1.0.0';
+const GAME_VERSION = 'v1.0.1';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 600;
+
+
+// 画像読み込み
+const playerImg = new Image();
+playerImg.src = 'assets/images/player_girl.png';
+const enemyImg = new Image();
+enemyImg.src = 'assets/images/enemy_skeleton.png';
 
 // プレイヤー
 const player = {
@@ -119,18 +126,48 @@ function render() {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // プレイヤー
+
     if (player.alive) {
-        ctx.fillStyle = '#0ff';
-        ctx.fillRect(player.x, player.y, player.w, player.h);
+        if (playerImg.complete && playerImg.naturalWidth > 0) {
+            ctx.drawImage(playerImg, player.x, player.y, player.w, player.h);
+        } else {
+            // 画像がなければシルエット
+            ctx.fillStyle = '#0ff';
+            ctx.beginPath();
+            ctx.arc(player.x + player.w/2, player.y + player.h/2, player.w/2, 0, Math.PI*2);
+            ctx.fill();
+        }
     }
 
     // 弾
     ctx.fillStyle = '#fff';
     bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
 
+
     // 敵
-    ctx.fillStyle = '#f33';
-    enemies.forEach(e => ctx.fillRect(e.x, e.y, e.w, e.h));
+    enemies.forEach(e => {
+        if (enemyImg.complete && enemyImg.naturalWidth > 0) {
+            ctx.drawImage(enemyImg, e.x, e.y, e.w, e.h);
+        } else {
+            // 画像がなければシルエット
+            ctx.fillStyle = '#f33';
+            ctx.beginPath();
+            ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/2, 0, Math.PI*2);
+            ctx.fill();
+        }
+    });
+// BGM再生
+let bgm;
+function playBGM() {
+    if (!bgm) {
+        bgm = new Audio('assets/sounds/bgm.mp3');
+        bgm.loop = true;
+        bgm.volume = 0.3;
+    }
+    bgm.play();
+}
+
+window.addEventListener('pointerdown', playBGM, { once: true });
 
     // スコア
     ctx.fillStyle = '#fff';
