@@ -16,13 +16,16 @@ const player = {
 };
 
 // 弾
+
 let bullets = [];
-// 敵
 let enemies = [];
 let score = 0;
 let lastEnemyTime = 0;
 let lastBulletTime = 0;
 let isGameOver = false;
+
+// 吹き出し（敵を倒したときのエフェクト）
+let effects = [];
 
 function resetGame() {
     player.x = canvas.width / 2;
@@ -78,10 +81,18 @@ function update(dt) {
     enemies.forEach(e => e.y += e.speed);
     enemies = enemies.filter(e => e.y < canvas.height + e.h);
 
+
     // 衝突判定（弾と敵）
     bullets.forEach((b, bi) => {
         enemies.forEach((e, ei) => {
             if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
+                // 吹き出しエフェクト追加
+                effects.push({
+                    x: e.x + e.w/2,
+                    y: e.y,
+                    text: 'うわああああ',
+                    time: performance.now()
+                });
                 bullets[bi].y = -1000; // 画面外に
                 enemies[ei].y = canvas.height + 1000; // 画面外に
                 score++;
@@ -123,6 +134,21 @@ function render() {
     ctx.fillStyle = '#fff';
     ctx.font = '24px sans-serif';
     ctx.fillText('SCORE: ' + score, 20, 40);
+
+    // 吹き出しエフェクト
+    const now = performance.now();
+    effects = effects.filter(e => now - e.time < 700);
+    effects.forEach(e => {
+        ctx.save();
+        ctx.font = 'bold 32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4;
+        ctx.strokeText(e.text, e.x, e.y);
+        ctx.fillText(e.text, e.x, e.y);
+        ctx.restore();
+    });
 
     // ゲームオーバー
     if (isGameOver) {
