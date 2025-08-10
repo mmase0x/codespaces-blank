@@ -83,8 +83,7 @@ const BOSS_HP = 10;
 const BOSS_BULLET_INTERVAL = 900; // ボス弾発射間隔(ms)
 
 // ボス警告メッセージ用
-let bossWarningShown = false;
-let bossWarningTime = 0;
+// ボス警告メッセージ用（状態管理不要に）
 
 function resetGame() {
     player.x = canvas.width / 2;
@@ -129,15 +128,7 @@ function shootBullet(angle = 0) {
 }
 
 function update(dt) {
-    // ボス警告メッセージ表示管理
-    if (!boss && !bossWarningShown && performance.now() - bossAppearTime > BOSS_APPEAR_INTERVAL - 10000) {
-        bossWarningShown = true;
-        bossWarningTime = performance.now();
-    }
-    // ボス出現時に警告リセット
-    if (boss) {
-        bossWarningShown = false;
-    }
+    // ボス警告メッセージ表示管理（状態管理不要）
     // アイテム移動
     items.forEach(item => item.y += item.vy);
     items = items.filter(item => item.y < canvas.height && item.y > -100 && item.type !== undefined);
@@ -307,16 +298,19 @@ function update(dt) {
 
 function render() {
     // ボス警告メッセージ
-    if (bossWarningShown && performance.now() - bossWarningTime < 2000) {
-        ctx.save();
-        ctx.font = 'bold 44px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff0';
-        ctx.strokeStyle = '#f00';
-        ctx.lineWidth = 8;
-        ctx.strokeText('ボス接近中！', canvas.width/2, 120);
-        ctx.fillText('ボス接近中！', canvas.width/2, 120);
-        ctx.restore();
+    if (!boss) {
+        const remain = BOSS_APPEAR_INTERVAL - (performance.now() - bossAppearTime);
+        if (remain <= 10000 && remain > 8000) {
+            ctx.save();
+            ctx.font = 'bold 44px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ff0';
+            ctx.strokeStyle = '#f00';
+            ctx.lineWidth = 8;
+            ctx.strokeText('ボス接近中！', canvas.width/2, 120);
+            ctx.fillText('ボス接近中！', canvas.width/2, 120);
+            ctx.restore();
+        }
     }
 
     // 画面クリア
