@@ -148,7 +148,7 @@ function update(dt) {
     bullets.forEach((b, bi) => {
         enemies.forEach((e, ei) => {
             if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
-                playHitSound();
+                // playHitSound(); // 効果音一時停止
                 // 吹き出しエフェクト追加
                 effects.push({
                     x: e.x + e.w/2,
@@ -235,15 +235,26 @@ function render() {
     // プレイヤー
 
     if (player.alive) {
-        if (playerImg.complete && playerImg.naturalWidth > 0) {
-            ctx.drawImage(playerImg, player.x, player.y, player.w, player.h);
-        } else {
-            // 画像がなければシルエット
-            ctx.fillStyle = '#0ff';
-            ctx.beginPath();
-            ctx.arc(player.x + player.w/2, player.y + player.h/2, player.w/2, 0, Math.PI*2);
-            ctx.fill();
-        }
+        // 飛行機風（三角形＋翼）
+        ctx.save();
+        ctx.translate(player.x + player.w/2, player.y + player.h/2);
+        // 本体（三角形）
+        ctx.beginPath();
+        ctx.moveTo(0, -player.h/2);
+        ctx.lineTo(-player.w/2, player.h/2);
+        ctx.lineTo(player.w/2, player.h/2);
+        ctx.closePath();
+        ctx.fillStyle = '#0cf';
+        ctx.fill();
+        // 翼
+        ctx.beginPath();
+        ctx.moveTo(-player.w/2, player.h/4);
+        ctx.lineTo(0, 0);
+        ctx.lineTo(player.w/2, player.h/4);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+        ctx.restore();
     }
 
     // 弾
@@ -253,15 +264,43 @@ function render() {
 
     // 敵
     enemies.forEach(e => {
-        if (enemyImg.complete && enemyImg.naturalWidth > 0) {
-            ctx.drawImage(enemyImg, e.x, e.y, e.w, e.h);
-        } else {
-            // 画像がなければシルエット
-            ctx.fillStyle = '#f33';
+        // 骸骨風（丸＋目＋骨）
+        ctx.save();
+        ctx.translate(e.x + e.w/2, e.y + e.h/2);
+        // 頭
+        ctx.beginPath();
+        ctx.arc(0, 0, e.w/2, 0, Math.PI*2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // 目
+        ctx.beginPath();
+        ctx.arc(-e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
+        ctx.arc(e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
+        ctx.fillStyle = '#222';
+        ctx.fill();
+        // 口
+        ctx.beginPath();
+        ctx.arc(0, e.h/8, e.w/6, 0, Math.PI);
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // 骨（下）
+        for(let i=-1;i<=1;i++){
             ctx.beginPath();
-            ctx.arc(e.x + e.w/2, e.y + e.h/2, e.w/2, 0, Math.PI*2);
+            ctx.moveTo(i*e.w/6, e.h/2-4);
+            ctx.lineTo(i*e.w/6, e.h/2+8);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(i*e.w/6, e.h/2+10, 3, 0, Math.PI*2);
+            ctx.fillStyle = '#fff';
             ctx.fill();
         }
+        ctx.restore();
     });
 // BGM再生
 let bgm;
