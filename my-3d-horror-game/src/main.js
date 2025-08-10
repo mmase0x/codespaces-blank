@@ -14,7 +14,7 @@ let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
 // バージョン番号（コミットごとに手動で増やしてください）
-const GAME_VERSION = 'v1.0.2';
+const GAME_VERSION = 'v1.0.3';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
