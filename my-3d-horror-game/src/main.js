@@ -59,6 +59,17 @@ let isGameOver = false;
 // 吹き出し（敵を倒したときのエフェクト）
 let effects = [];
 
+// 爆発エフェクト生成関数
+function spawnExplosion(x, y, size = 40) {
+    effects.push({
+        type: 'explosion',
+        x, y,
+        size,
+        time: performance.now(),
+        duration: 600
+    });
+}
+
 // ボス関連
 let boss = null;
 let bossBullets = [];
@@ -121,9 +132,23 @@ function update(dt) {
             w: 160,
             h: 120,
             hp: BOSS_HP,
-            lastShot: performance.now()
+            lastShot: performance.now(),
+            dir: 1, // 1:右, -1:左
+            speed: 3 // ボスの移動速度
         };
         bossBullets = [];
+    }
+    // ボス移動（左右に往復）
+    if (boss && boss.hp > 0) {
+        boss.x += boss.dir * boss.speed;
+        // 画面端で反転
+        if (boss.x < 0) {
+            boss.x = 0;
+            boss.dir = 1;
+        } else if (boss.x + boss.w > canvas.width) {
+            boss.x = canvas.width - boss.w;
+            boss.dir = -1;
+        }
     }
 
     // ボス弾発射
@@ -204,6 +229,8 @@ function update(dt) {
                     text: 'うわああああ',
                     time: performance.now()
                 });
+                // 爆発エフェクト追加
+                spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.w);
                 // アイテム出現（10%の確率）
                 if (Math.random() < 0.1) {
                     const itemType = Math.random() < 0.5 ? ITEM_CRYSTAL : ITEM_BOMB;
@@ -236,6 +263,7 @@ function update(dt) {
                         text: '撃破!',
                         time: performance.now()
                     });
+                    spawnExplosion(boss.x + boss.w/2, boss.y + boss.h/2, boss.w);
                     setTimeout(() => { boss = null; bossAppearTime = performance.now(); }, 1200);
                 }
             }
@@ -475,17 +503,44 @@ window.addEventListener('pointerdown', playBGM, { once: true });
 
     // 吹き出しエフェクト
     const now = performance.now();
-    effects = effects.filter(e => now - e.time < 1000 && e.x !== undefined && e.y !== undefined);
+    effects = effects.filter(e => {
+        if (e.type === 'explosion') {
+            return now - e.time < e.duration;
+        }
+        return now - e.time < 1000 && e.x !== undefined && e.y !== undefined;
+    });
     effects.forEach(e => {
-        ctx.save();
-        ctx.font = 'bold 44px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff0';
-        ctx.strokeStyle = '#f00';
-        ctx.lineWidth = 6;
-        ctx.strokeText(e.text, e.x, e.y);
-        ctx.fillText(e.text, e.x, e.y);
-        ctx.restore();
+        if (e.type === 'explosion') {
+            // 爆発アニメーション
+            const t = (now - e.time) / e.duration;
+            const r = e.size * (0.5 + t * 1.2);
+            ctx.save();
+            ctx.globalAlpha = 0.7 * (1 - t);
+            // 爆発の外側
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, r, 0, Math.PI*2);
+            ctx.fillStyle = 'orange';
+            ctx.shadowColor = 'yellow';
+            ctx.shadowBlur = 24;
+            ctx.fill();
+            // 爆発の内側
+            ctx.beginPath();
+            ctx.arc(e.x, e.y, r*0.5, 0, Math.PI*2);
+            ctx.fillStyle = 'yellow';
+            ctx.shadowBlur = 0;
+            ctx.fill();
+            ctx.restore();
+        } else if (e.text) {
+            ctx.save();
+            ctx.font = 'bold 44px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ff0';
+            ctx.strokeStyle = '#f00';
+            ctx.lineWidth = 6;
+            ctx.strokeText(e.text, e.x, e.y);
+            ctx.fillText(e.text, e.x, e.y);
+            ctx.restore();
+        }
     });
     // 画面外に出ないよう制限
     player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
