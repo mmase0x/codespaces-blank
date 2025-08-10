@@ -59,6 +59,14 @@ let isGameOver = false;
 // 吹き出し（敵を倒したときのエフェクト）
 let effects = [];
 
+// ボス関連
+let boss = null;
+let bossBullets = [];
+let bossAppearTime = 0;
+const BOSS_APPEAR_INTERVAL = 15000; // 15秒ごとに出現
+const BOSS_HP = 10;
+const BOSS_BULLET_INTERVAL = 900; // ボス弾発射間隔(ms)
+
 function resetGame() {
     player.x = canvas.width / 2;
     player.alive = true;
@@ -68,6 +76,9 @@ function resetGame() {
     lastEnemyTime = 0;
     lastBulletTime = 0;
     isGameOver = false;
+    boss = null;
+    bossBullets = [];
+    bossAppearTime = performance.now();
 }
 
 function spawnEnemy() {
@@ -101,6 +112,35 @@ function update(dt) {
     // アイテム移動
     items.forEach(item => item.y += item.vy);
     items = items.filter(item => item.y < canvas.height && item.y > -100 && item.type !== undefined);
+
+    // ボス出現
+    if (!boss && performance.now() - bossAppearTime > BOSS_APPEAR_INTERVAL) {
+        boss = {
+            x: canvas.width/2 - 80,
+            y: 60,
+            w: 160,
+            h: 120,
+            hp: BOSS_HP,
+            lastShot: performance.now()
+        };
+        bossBullets = [];
+    }
+
+    // ボス弾発射
+    if (boss && boss.hp > 0 && performance.now() - boss.lastShot > BOSS_BULLET_INTERVAL) {
+        bossBullets.push({
+            x: boss.x + boss.w/2 - 8,
+            y: boss.y + boss.h/2,
+            w: 16,
+            h: 24,
+            vy: 7
+        });
+        boss.lastShot = performance.now();
+    }
+
+    // ボス弾移動
+    bossBullets.forEach(b => b.y += b.vy);
+    bossBullets = bossBullets.filter(b => b.y < canvas.height);
 
     // アイテム取得判定
     items.forEach((item, ii) => {
@@ -183,9 +223,36 @@ function update(dt) {
         });
     });
 
+    // 衝突判定（弾とボス）
+    if (boss && boss.hp > 0) {
+        bullets.forEach((b, bi) => {
+            if (b.x < boss.x + boss.w && b.x + b.w > boss.x && b.y < boss.y + boss.h && b.y + b.h > boss.y) {
+                boss.hp--;
+                bullets[bi].y = -1000;
+                if (boss.hp <= 0) {
+                    effects.push({
+                        x: boss.x + boss.w/2,
+                        y: boss.y + boss.h/2,
+                        text: '撃破!',
+                        time: performance.now()
+                    });
+                    setTimeout(() => { boss = null; bossAppearTime = performance.now(); }, 1200);
+                }
+            }
+        });
+    }
+
     // 衝突判定（敵とプレイヤー）
     enemies.forEach(e => {
         if (player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y) {
+            player.alive = false;
+            isGameOver = true;
+        }
+    });
+
+    // 衝突判定（ボス弾とプレイヤー）
+    bossBullets.forEach(b => {
+        if (player.x < b.x + b.w && player.x + player.w > b.x && player.y < b.y + b.h && player.y + player.h > b.y) {
             player.alive = false;
             isGameOver = true;
         }
@@ -268,6 +335,51 @@ function render() {
         ctx.fillText('扇状ショット!', canvas.width - 160, 40);
         ctx.restore();
     }
+
+    // ボス
+    if (boss && boss.hp > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.beginPath();
+        ctx.ellipse(boss.x + boss.w/2, boss.y + boss.h/2, boss.w/2, boss.h/2, 0, 0, Math.PI*2);
+        ctx.fillStyle = '#f44';
+        ctx.shadowColor = '#f88';
+        ctx.shadowBlur = 24;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // 顔
+        ctx.beginPath();
+        ctx.arc(boss.x + boss.w/2 - 30, boss.y + boss.h/2 - 10, 12, 0, Math.PI*2);
+        ctx.arc(boss.x + boss.w/2 + 30, boss.y + boss.h/2 - 10, 12, 0, Math.PI*2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(boss.x + boss.w/2 - 30, boss.y + boss.h/2 - 10, 5, 0, Math.PI*2);
+        ctx.arc(boss.x + boss.w/2 + 30, boss.y + boss.h/2 - 10, 5, 0, Math.PI*2);
+        ctx.fillStyle = '#222';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(boss.x + boss.w/2, boss.y + boss.h/2 + 20, 18, 0, Math.PI);
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+        // HPバー
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(boss.x + 10, boss.y + boss.h - 18, boss.w - 20, 10);
+        ctx.fillStyle = '#f44';
+        ctx.fillRect(boss.x + 10, boss.y + boss.h - 18, (boss.w - 20) * (boss.hp/BOSS_HP), 10);
+        ctx.restore();
+    }
+
+    // ボス弾
+    ctx.save();
+    ctx.fillStyle = '#f88';
+    bossBullets.forEach(b => {
+        ctx.beginPath();
+        ctx.ellipse(b.x + b.w/2, b.y + b.h/2, b.w/2, b.h/2, 0, 0, Math.PI*2);
+        ctx.fill();
+    });
+    ctx.restore();
 
     // プレイヤー
     if (player.alive) {
