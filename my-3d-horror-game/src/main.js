@@ -193,6 +193,14 @@ function update(dt) {
 }
 
 function render() {
+
+    // 画面クリア
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 背景
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
     // アイテム
     items.forEach(item => {
         ctx.save();
@@ -260,14 +268,8 @@ function render() {
         ctx.fillText('扇状ショット!', canvas.width - 160, 40);
         ctx.restore();
     }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 背景
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // プレイヤー
-
     if (player.alive) {
         // 飛行機風（三角形＋翼）
         ctx.save();
