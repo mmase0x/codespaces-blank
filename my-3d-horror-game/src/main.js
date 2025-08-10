@@ -1,3 +1,5 @@
+// バージョン番号（コミットごとに手動で増やしてください）
+const GAME_VERSION = 'v1.0.0';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
@@ -133,7 +135,12 @@ function render() {
     // スコア
     ctx.fillStyle = '#fff';
     ctx.font = '24px sans-serif';
+
     ctx.fillText('SCORE: ' + score, 20, 40);
+    // バージョン番号
+    ctx.font = '16px sans-serif';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText('ver: ' + GAME_VERSION, 22, 65);
 
     // 吹き出しエフェクト
     const now = performance.now();
