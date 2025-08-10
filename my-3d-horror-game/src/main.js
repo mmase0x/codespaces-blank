@@ -14,7 +14,7 @@ let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
 // バージョン番号（コミットごとに手動で増やしてください）
-const GAME_VERSION = 'v1.0.4';
+const GAME_VERSION = 'v1.0.5';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
@@ -148,7 +148,7 @@ function update(dt) {
     bullets.forEach((b, bi) => {
         enemies.forEach((e, ei) => {
             if (b.x < e.x + e.w && b.x + b.w > e.x && b.y < e.y + e.h && b.y + b.h > e.y) {
-                // playHitSound(); // 効果音一時停止
+                playHitSound(); // 効果音再生
                 // 吹き出しエフェクト追加
                 effects.push({
                     x: e.x + e.w/2,
@@ -187,35 +187,61 @@ function update(dt) {
 function render() {
     // アイテム
     items.forEach(item => {
+        ctx.save();
+        ctx.translate(item.x + item.w/2, item.y + item.h/2);
         if (item.type === ITEM_CRYSTAL) {
-            // 青いクリスタル
-            ctx.save();
+            // 青いクリスタル（ひし形＋グラデーション）
+            let grad = ctx.createLinearGradient(0, -item.h/2, 0, item.h/2);
+            grad.addColorStop(0, '#aef');
+            grad.addColorStop(1, '#23f');
             ctx.beginPath();
-            ctx.arc(item.x + item.w/2, item.y + item.h/2, item.w/2, 0, Math.PI*2);
-            ctx.fillStyle = '#33f';
-            ctx.globalAlpha = 0.8;
+            ctx.moveTo(0, -item.h/2);
+            ctx.lineTo(item.w/2, 0);
+            ctx.lineTo(0, item.h/2);
+            ctx.lineTo(-item.w/2, 0);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = 0.9;
             ctx.fill();
             ctx.globalAlpha = 1.0;
-            ctx.font = '18px sans-serif';
-            ctx.fillStyle = '#fff';
-            ctx.textAlign = 'center';
-            ctx.fillText('C', item.x + item.w/2, item.y + item.h/2 + 7);
-            ctx.restore();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         } else if (item.type === ITEM_BOMB) {
-            // 黄色い爆弾
-            ctx.save();
+            // 黄色い爆弾（丸＋導火線＋火花）
+            // 本体
             ctx.beginPath();
-            ctx.arc(item.x + item.w/2, item.y + item.h/2, item.w/2, 0, Math.PI*2);
+            ctx.arc(0, 0, item.w/2.5, 0, Math.PI*2);
             ctx.fillStyle = '#ff0';
-            ctx.globalAlpha = 0.8;
+            ctx.globalAlpha = 0.9;
             ctx.fill();
             ctx.globalAlpha = 1.0;
-            ctx.font = '18px sans-serif';
-            ctx.fillStyle = '#000';
-            ctx.textAlign = 'center';
-            ctx.fillText('B', item.x + item.w/2, item.y + item.h/2 + 7);
+            ctx.strokeStyle = '#cc0';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // 導火線
+            ctx.beginPath();
+            ctx.moveTo(0, -item.h/2.5);
+            ctx.lineTo(0, -item.h/1.5);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // 火花
+            ctx.save();
+            ctx.translate(0, -item.h/1.5);
+            ctx.rotate(Math.random()*Math.PI*2);
+            for(let i=0;i<6;i++){
+                ctx.beginPath();
+                ctx.moveTo(0,0);
+                ctx.lineTo(6,0);
+                ctx.strokeStyle = '#f90';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.rotate(Math.PI/3);
+            }
             ctx.restore();
         }
+        ctx.restore();
     });
 
     // 扇状ショット中の表示
