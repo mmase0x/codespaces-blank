@@ -1,9 +1,13 @@
-// 効果音（毎回新インスタンスで再生）
+// 効果音AudioPool
+const hitSoundPool = Array.from({length: 8}, () => new Audio('assets/sounds/hit.mp3'));
+let hitSoundIdx = 0;
 function playHitSound() {
     try {
-        const s = new Audio('assets/sounds/hit.mp3');
+        const s = hitSoundPool[hitSoundIdx];
+        s.currentTime = 0;
         s.volume = 0.7;
         s.play();
+        hitSoundIdx = (hitSoundIdx + 1) % hitSoundPool.length;
     } catch(e) {}
 }
 // アイテム定義
@@ -14,7 +18,7 @@ let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
 // バージョン番号（コミットごとに手動で増やしてください）
-const GAME_VERSION = 'v1.0.5';
+const GAME_VERSION = 'v1.0.6';
 
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
@@ -329,16 +333,16 @@ function render() {
         ctx.restore();
     });
 // BGM再生
-let bgm;
+const bgm = new Audio('assets/sounds/bgm.mp3');
+bgm.loop = true;
+bgm.volume = 0.3;
+let bgmStarted = false;
 function playBGM() {
-    if (!bgm) {
-        bgm = new Audio('assets/sounds/bgm.mp3');
-        bgm.loop = true;
-        bgm.volume = 0.3;
+    if (!bgmStarted) {
+        bgm.play();
+        bgmStarted = true;
     }
-    bgm.play();
 }
-
 window.addEventListener('pointerdown', playBGM, { once: true });
 
     // スコア
@@ -355,63 +359,60 @@ window.addEventListener('pointerdown', playBGM, { once: true });
     const now = performance.now();
     effects = effects.filter(e => now - e.time < 1000 && e.x !== undefined && e.y !== undefined);
     effects.forEach(e => {
-        ctx.save();
-        ctx.font = 'bold 44px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff0';
-        ctx.strokeStyle = '#f00';
-        ctx.lineWidth = 6;
-        ctx.strokeText(e.text, e.x, e.y);
-        ctx.fillText(e.text, e.x, e.y);
-        ctx.restore();
-    });
-
-    // ゲームオーバー
-    if (isGameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#fff';
-        ctx.font = '48px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2);
-        ctx.font = '28px sans-serif';
-        ctx.fillText('タップでリトライ', canvas.width/2, canvas.height/2+60);
-        ctx.textAlign = 'left';
-    }
-}
-
-let lastTime = 0;
-function gameLoop(ts) {
-    try {
-        const dt = ts - lastTime;
-        lastTime = ts;
-        if (!isGameOver) update(dt);
-        render();
-    } catch (e) {
-        console.error('Game error:', e);
-    }
-    requestAnimationFrame(gameLoop);
-}
-
-// タップ・ドラッグ操作
-let dragging = false;
-let offsetX = 0;
-
-function handlePointerDown(e) {
-    if (isGameOver) {
-        resetGame();
-        return;
-    }
-    dragging = true;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    offsetX = x - player.x;
-}
-function handlePointerMove(e) {
-    if (!dragging) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    player.x = x - offsetX;
+        items.forEach(item => {
+            ctx.save();
+            ctx.translate(item.x + item.w/2, item.y + item.h/2);
+            if (item.type === ITEM_CRYSTAL) {
+                // 青いクリスタル（ひし形＋グラデーション）
+                let grad = ctx.createLinearGradient(0, -item.h/2, 0, item.h/2);
+                grad.addColorStop(0, '#aef');
+                grad.addColorStop(1, '#23f');
+                ctx.beginPath();
+                ctx.moveTo(0, -item.h/2);
+                ctx.lineTo(item.w/2, 0);
+                ctx.lineTo(0, item.h/2);
+                ctx.lineTo(-item.w/2, 0);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.globalAlpha = 0.9;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else if (item.type === ITEM_BOMB) {
+                // 黄色い爆弾（丸＋導火線＋火花）
+                ctx.beginPath();
+                ctx.arc(0, 0, item.w/2.5, 0, Math.PI*2);
+                ctx.fillStyle = '#ff0';
+                ctx.globalAlpha = 0.9;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                ctx.strokeStyle = '#cc0';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, -item.h/2.5);
+                ctx.lineTo(0, -item.h/1.5);
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.save();
+                ctx.translate(0, -item.h/1.5);
+                ctx.rotate(Math.random()*Math.PI*2);
+                for(let i=0;i<6;i++){
+                    ctx.beginPath();
+                    ctx.moveTo(0,0);
+                    ctx.lineTo(6,0);
+                    ctx.strokeStyle = '#f90';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.rotate(Math.PI/3);
+                }
+                ctx.restore();
+            }
+            ctx.restore();
+        });
     // 画面外に出ないよう制限
     player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
 }
