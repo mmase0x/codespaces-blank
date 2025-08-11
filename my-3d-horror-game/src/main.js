@@ -78,8 +78,8 @@ function resetGame() {
 
 function spawnEnemy() {
     const size = 36 + Math.random() * 24;
-    // 10%の確率でちょうちょ型敵を出現
-    if (Math.random() < 0.1) {
+    // 40%の確率でちょうちょ型敵を出現
+    if (Math.random() < 0.4) {
         enemies.push({
             type: 'butterfly',
             x: Math.random() * (canvas.width - size),
@@ -465,6 +465,7 @@ function render() {
                 ctx.arc(e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
                 ctx.fillStyle = '#222';
                 ctx.fill();
+                // 口（削除済み）
                 // 骨（下）
                 for(let i=-1;i<=1;i++){
                     ctx.beginPath();
