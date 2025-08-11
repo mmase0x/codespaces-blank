@@ -14,6 +14,12 @@ function playHitSound() {
 const ITEM_NONE = 0;
 const ITEM_CRYSTAL = 1; // 青クリスタル
 const ITEM_BOMB = 2;    // 黄色爆弾
+const ITEM_SHADOW = 3;  // 黒いクリスタル（分身）
+// ちょうちょ型敵の弾
+let butterflyBullets = [];
+// 分身状態
+let shadowActive = false;
+let shadowEndTime = 0;
 let items = [];
 let spreadShotActive = false;
 let spreadShotEndTime = 0;
@@ -24,13 +30,11 @@ import { GAME_VERSION } from './version.js';
 let dragging = false;
 let dragOffsetX = 0;
 
-
 // --- シンプル縦スクロールシューティング ---
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = 800;
 canvas.height = 600;
-const restartBtn = document.getElementById('restartBtn');
 
 
 // 画像読み込み
@@ -54,8 +58,6 @@ const player = {
 let bullets = [];
 let enemies = [];
 let score = 0;
-let highScore = Number(localStorage.getItem('highScore') || 0);
-let showHighScoreMsg = false;
 let lastEnemyTime = 0;
 let lastBulletTime = 0;
 let isGameOver = false;
@@ -63,52 +65,42 @@ let isGameOver = false;
 // 吹き出し（敵を倒したときのエフェクト）
 let effects = [];
 
-// 爆発エフェクト生成関数
-function spawnExplosion(x, y, size = 40) {
-    effects.push({
-        type: 'explosion',
-        x, y,
-        size,
-        time: performance.now(),
-        duration: 600
-    });
-}
-
-// ボス関連
-let boss = null;
-let bossBullets = [];
-let bossAppearTime = 0;
-const BOSS_APPEAR_INTERVAL = 15000; // 15秒ごとに出現
-const BOSS_HP = 10;
-const BOSS_BULLET_INTERVAL = 900; // ボス弾発射間隔(ms)
-
-// ボス警告メッセージ用
-// ボス警告メッセージ用（状態管理不要に）
-
 function resetGame() {
     player.x = canvas.width / 2;
     player.alive = true;
     bullets = [];
     enemies = [];
     score = 0;
-    showHighScoreMsg = false;
     lastEnemyTime = 0;
     lastBulletTime = 0;
     isGameOver = false;
-    boss = null;
-    bossBullets = [];
-    bossAppearTime = performance.now();
 }
 
 function spawnEnemy() {
     const size = 36 + Math.random() * 24;
-    enemies.push({
-        x: Math.random() * (canvas.width - size),
-        y: -size,
-        w: size,
-        h: size,
-        speed: 2 + Math.random() * 2
-    });
+    // 10%の確率でちょうちょ型敵を出現
+    if (Math.random() < 0.1) {
+        enemies.push({
+            type: 'butterfly',
+            x: Math.random() * (canvas.width - size),
+            y: -size,
+            w: size,
+            h: size,
+            speed: 2 + Math.random() * 1.5,
+            angle: 0,
+            angleSpeed: 0.1 + Math.random() * 0.1,
+            fireCooldown: 0
+        });
+    } else {
+        enemies.push({
+            type: 'normal',
+            x: Math.random() * (canvas.width - size),
+            y: -size,
+            w: size,
+            h: size,
+            speed: 2 + Math.random() * 2
+        });
+    }
 }
 
 function shootBullet(angle = 0) {
@@ -128,53 +120,14 @@ function shootBullet(angle = 0) {
 }
 
 function update(dt) {
-    // ボス警告メッセージ表示管理（状態管理不要）
     // アイテム移動
     items.forEach(item => item.y += item.vy);
     items = items.filter(item => item.y < canvas.height && item.y > -100 && item.type !== undefined);
 
-    // ボス出現
-    if (!boss && performance.now() - bossAppearTime > BOSS_APPEAR_INTERVAL) {
-        boss = {
-            x: canvas.width/2 - 80,
-            y: 60,
-            w: 160,
-            h: 120,
-            hp: BOSS_HP,
-            lastShot: performance.now(),
-            dir: 1, // 1:右, -1:左
-            speed: 3 // ボスの移動速度
-        };
-        bossBullets = [];
+    // 分身アイテム効果終了
+    if (shadowActive && performance.now() > shadowEndTime) {
+        shadowActive = false;
     }
-    // ボス移動（左右に往復）
-    if (boss && boss.hp > 0) {
-        boss.x += boss.dir * boss.speed;
-        // 画面端で反転
-        if (boss.x < 0) {
-            boss.x = 0;
-            boss.dir = 1;
-        } else if (boss.x + boss.w > canvas.width) {
-            boss.x = canvas.width - boss.w;
-            boss.dir = -1;
-        }
-    }
-
-    // ボス弾発射
-    if (boss && boss.hp > 0 && performance.now() - boss.lastShot > BOSS_BULLET_INTERVAL) {
-        bossBullets.push({
-            x: boss.x + boss.w/2 - 8,
-            y: boss.y + boss.h/2,
-            w: 16,
-            h: 24,
-            vy: 7
-        });
-        boss.lastShot = performance.now();
-    }
-
-    // ボス弾移動
-    bossBullets.forEach(b => b.y += b.vy);
-    bossBullets = bossBullets.filter(b => b.y < canvas.height);
 
     // アイテム取得判定
     items.forEach((item, ii) => {
@@ -216,13 +169,45 @@ function update(dt) {
     });
     bullets = bullets.filter(b => b.y + b.h > 0 && b.y < canvas.height && b.x + b.w > 0 && b.x < canvas.width && !isNaN(b.x) && !isNaN(b.y));
 
+    // ちょうちょ型敵の弾移動
+    butterflyBullets.forEach(b => {
+        b.x += b.vx;
+        b.y += b.vy;
+    });
+    butterflyBullets = butterflyBullets.filter(b => b.y + b.h > 0 && b.y < canvas.height && b.x + b.w > 0 && b.x < canvas.width);
+
     // 敵出現（0.7秒ごと）
     if (performance.now() - lastEnemyTime > 700) {
         spawnEnemy();
         lastEnemyTime = performance.now();
     }
     // 敵移動
-    enemies.forEach(e => e.y += e.speed);
+    enemies.forEach(e => {
+        if (e.type === 'butterfly') {
+            e.angle += e.angleSpeed;
+            e.x += Math.sin(e.angle) * 3;
+            e.y += e.speed;
+            // 弾発射
+            e.fireCooldown -= dt;
+            if (e.fireCooldown <= 0) {
+                // プレイヤー方向に弾
+                const dx = (player.x + player.w/2) - (e.x + e.w/2);
+                const dy = (player.y + player.h/2) - (e.y + e.h/2);
+                const len = Math.sqrt(dx*dx + dy*dy);
+                butterflyBullets.push({
+                    x: e.x + e.w/2 - 4,
+                    y: e.y + e.h/2 - 4,
+                    w: 8,
+                    h: 8,
+                    vx: dx/len*4,
+                    vy: dy/len*4
+                });
+                e.fireCooldown = 900 + Math.random()*600;
+            }
+        } else {
+            e.y += e.speed;
+        }
+    });
     enemies = enemies.filter(e => e.y < canvas.height + e.h && e.y > -100 && e.w > 0 && e.h > 0);
 
 
@@ -238,19 +223,32 @@ function update(dt) {
                     text: 'うわああああ',
                     time: performance.now()
                 });
-                // 爆発エフェクト追加
-                spawnExplosion(e.x + e.w/2, e.y + e.h/2, e.w);
-                // アイテム出現（10%の確率）
-                if (Math.random() < 0.1) {
-                    const itemType = Math.random() < 0.5 ? ITEM_CRYSTAL : ITEM_BOMB;
-                    items.push({
-                        x: e.x + e.w/2 - 16,
-                        y: e.y + e.h/2 - 16,
-                        w: 32,
-                        h: 32,
-                        type: itemType,
-                        vy: 2
-                    });
+                // アイテム出現
+                if (e.type === 'butterfly') {
+                    // 20%で分身アイテム
+                    if (Math.random() < 0.2) {
+                        items.push({
+                            x: e.x + e.w/2 - 16,
+                            y: e.y + e.h/2 - 16,
+                            w: 32,
+                            h: 32,
+                            type: ITEM_SHADOW,
+                            vy: 2
+                        });
+                    }
+                } else {
+                    // 通常敵は従来通り
+                    if (Math.random() < 0.1) {
+                        const itemType = Math.random() < 0.5 ? ITEM_CRYSTAL : ITEM_BOMB;
+                        items.push({
+                            x: e.x + e.w/2 - 16,
+                            y: e.y + e.h/2 - 16,
+                            w: 32,
+                            h: 32,
+                            type: itemType,
+                            vy: 2
+                        });
+                    }
                 }
                 bullets[bi].y = -1000; // 画面外に
                 enemies[ei].y = canvas.height + 1000; // 画面外に
@@ -259,26 +257,6 @@ function update(dt) {
         });
     });
 
-    // 衝突判定（弾とボス）
-    if (boss && boss.hp > 0) {
-        bullets.forEach((b, bi) => {
-            if (b.x < boss.x + boss.w && b.x + b.w > boss.x && b.y < boss.y + boss.h && b.y + b.h > boss.y) {
-                boss.hp--;
-                bullets[bi].y = -1000;
-                if (boss.hp <= 0) {
-                    effects.push({
-                        x: boss.x + boss.w/2,
-                        y: boss.y + boss.h/2,
-                        text: '撃破!',
-                        time: performance.now()
-                    });
-                    spawnExplosion(boss.x + boss.w/2, boss.y + boss.h/2, boss.w);
-                    setTimeout(() => { boss = null; bossAppearTime = performance.now(); }, 1200);
-                }
-            }
-        });
-    }
-
     // 衝突判定（敵とプレイヤー）
     enemies.forEach(e => {
         if (player.x < e.x + e.w && player.x + player.w > e.x && player.y < e.y + e.h && player.y + player.h > e.y) {
@@ -286,40 +264,24 @@ function update(dt) {
             isGameOver = true;
         }
     });
-
-    // 衝突判定（ボス弾とプレイヤー）
-    bossBullets.forEach(b => {
+    // ちょうちょ型敵の弾とプレイヤー
+    butterflyBullets.forEach(b => {
         if (player.x < b.x + b.w && player.x + player.w > b.x && player.y < b.y + b.h && player.y + player.h > b.y) {
             player.alive = false;
             isGameOver = true;
         }
     });
+    // アイテム取得: 分身
+    items.forEach((item, ii) => {
+        if (item.type === ITEM_SHADOW && player.x < item.x + item.w && player.x + player.w > item.x && player.y < item.y + item.h && player.y + player.h > item.y) {
+            shadowActive = true;
+            shadowEndTime = performance.now() + 6000; // 6秒間分身
+            items[ii].y = canvas.height + 1000;
+        }
+    });
 }
 
 function render() {
-    // ボス警告メッセージ
-    if (!boss) {
-        const remain = BOSS_APPEAR_INTERVAL - (performance.now() - bossAppearTime);
-        if (remain <= 10000 && remain > 8000) {
-            ctx.save();
-            ctx.font = 'bold 44px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#ff0';
-            ctx.strokeStyle = '#f00';
-            ctx.lineWidth = 8;
-            ctx.strokeText('ボス接近中！', canvas.width/2, 120);
-            ctx.fillText('ボス接近中！', canvas.width/2, 120);
-            ctx.restore();
-        }
-    }
-
-    // 画面クリア
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 背景
-    ctx.fillStyle = '#111';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     // アイテム
     items.forEach(item => {
         ctx.save();
@@ -375,6 +337,24 @@ function render() {
                 ctx.rotate(Math.PI/3);
             }
             ctx.restore();
+        } else if (item.type === ITEM_SHADOW) {
+            // 黒いクリスタル（分身）
+            let grad = ctx.createLinearGradient(0, -item.h/2, 0, item.h/2);
+            grad.addColorStop(0, '#222');
+            grad.addColorStop(1, '#555');
+            ctx.beginPath();
+            ctx.moveTo(0, -item.h/2);
+            ctx.lineTo(item.w/2, 0);
+            ctx.lineTo(0, item.h/2);
+            ctx.lineTo(-item.w/2, 0);
+            ctx.closePath();
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = 0.95;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
         ctx.restore();
     });
@@ -387,58 +367,32 @@ function render() {
         ctx.fillText('扇状ショット!', canvas.width - 160, 40);
         ctx.restore();
     }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // ボス
-    if (boss && boss.hp > 0) {
-        ctx.save();
-        ctx.globalAlpha = 0.92;
-        ctx.beginPath();
-        ctx.ellipse(boss.x + boss.w/2, boss.y + boss.h/2, boss.w/2, boss.h/2, 0, 0, Math.PI*2);
-        ctx.fillStyle = '#f44';
-        ctx.shadowColor = '#f88';
-        ctx.shadowBlur = 24;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        // 顔
-        ctx.beginPath();
-        ctx.arc(boss.x + boss.w/2 - 30, boss.y + boss.h/2 - 10, 12, 0, Math.PI*2);
-        ctx.arc(boss.x + boss.w/2 + 30, boss.y + boss.h/2 - 10, 12, 0, Math.PI*2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(boss.x + boss.w/2 - 30, boss.y + boss.h/2 - 10, 5, 0, Math.PI*2);
-        ctx.arc(boss.x + boss.w/2 + 30, boss.y + boss.h/2 - 10, 5, 0, Math.PI*2);
-        ctx.fillStyle = '#222';
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(boss.x + boss.w/2, boss.y + boss.h/2 + 20, 18, 0, Math.PI);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fff';
-        ctx.stroke();
-        // HPバー
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(boss.x + 10, boss.y + boss.h - 18, boss.w - 20, 10);
-        ctx.fillStyle = '#f44';
-        ctx.fillRect(boss.x + 10, boss.y + boss.h - 18, (boss.w - 20) * (boss.hp/BOSS_HP), 10);
-        ctx.restore();
-    }
-
-    // ボス弾
-    ctx.save();
-    ctx.fillStyle = '#f88';
-    bossBullets.forEach(b => {
-        ctx.beginPath();
-        ctx.ellipse(b.x + b.w/2, b.y + b.h/2, b.w/2, b.h/2, 0, 0, Math.PI*2);
-        ctx.fill();
-    });
-    ctx.restore();
+    // 背景
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // プレイヤー
     if (player.alive) {
-        // 飛行機風（三角形＋翼）
+        // 分身状態なら2体描画
+        if (shadowActive) {
+            for (let i = -1; i <= 1; i += 2) {
+                ctx.save();
+                ctx.globalAlpha = 0.5;
+                ctx.translate(player.x + player.w/2 + i*30, player.y + player.h/2);
+                ctx.beginPath();
+                ctx.moveTo(0, -player.h/2);
+                ctx.lineTo(-player.w/2, player.h/2);
+                ctx.lineTo(player.w/2, player.h/2);
+                ctx.closePath();
+                ctx.fillStyle = '#222';
+                ctx.fill();
+                ctx.restore();
+            }
+        }
         ctx.save();
         ctx.translate(player.x + player.w/2, player.y + player.h/2);
-        // 本体（三角形）
         ctx.beginPath();
         ctx.moveTo(0, -player.h/2);
         ctx.lineTo(-player.w/2, player.h/2);
@@ -446,7 +400,6 @@ function render() {
         ctx.closePath();
         ctx.fillStyle = '#0cf';
         ctx.fill();
-        // 翼
         ctx.beginPath();
         ctx.moveTo(-player.w/2, player.h/4);
         ctx.lineTo(0, 0);
@@ -465,45 +418,77 @@ function render() {
     // 敵
     enemies.forEach(e => {
         // 骸骨風（丸＋目＋骨）
-        ctx.save();
-        ctx.translate(e.x + e.w/2, e.y + e.h/2);
-        // 頭
-        ctx.beginPath();
-        ctx.arc(0, 0, e.w/2, 0, Math.PI*2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.strokeStyle = '#333';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // 目
-        ctx.beginPath();
-        ctx.arc(-e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
-        ctx.arc(e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
-        ctx.fillStyle = '#222';
-        ctx.fill();
-        // 口
-        ctx.beginPath();
-        ctx.arc(0, e.h/8, e.w/6, 0, Math.PI);
-        ctx.strokeStyle = '#222';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        // 骨（下）
-        for(let i=-1;i<=1;i++){
+        // 敵
+        enemies.forEach(e => {
+            ctx.save();
+            ctx.translate(e.x + e.w/2, e.y + e.h/2);
+            if (e.type === 'butterfly') {
+                // ちょうちょ型（羽2枚＋胴体）
+                ctx.save();
+                ctx.rotate(Math.sin(e.angle)*0.5);
+                // 左羽
+                ctx.beginPath();
+                ctx.ellipse(-e.w/3, 0, e.w/3, e.h/2, Math.PI/6, 0, Math.PI*2);
+                ctx.fillStyle = '#f6f';
+                ctx.globalAlpha = 0.8;
+                ctx.fill();
+                // 右羽
+                ctx.beginPath();
+                ctx.ellipse(e.w/3, 0, e.w/3, e.h/2, -Math.PI/6, 0, Math.PI*2);
+                ctx.fillStyle = '#6ff';
+                ctx.globalAlpha = 0.8;
+                ctx.fill();
+                ctx.globalAlpha = 1.0;
+                ctx.restore();
+                // 胴体
+                ctx.beginPath();
+                ctx.ellipse(0, 0, e.w/8, e.h/2.2, 0, 0, Math.PI*2);
+                ctx.fillStyle = '#333';
+                ctx.fill();
+                // 頭
+                ctx.beginPath();
+                ctx.arc(0, -e.h/2.5, e.w/7, 0, Math.PI*2);
+                ctx.fillStyle = '#222';
+                ctx.fill();
+            } else {
+                // 骸骨風（丸＋目＋骨）
+                ctx.beginPath();
+                ctx.arc(0, 0, e.w/2, 0, Math.PI*2);
+                ctx.fillStyle = '#fff';
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // 目
+                ctx.beginPath();
+                ctx.arc(-e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
+                ctx.arc(e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
+                ctx.fillStyle = '#222';
+                ctx.fill();
+                // 骨（下）
+                for(let i=-1;i<=1;i++){
+                    ctx.beginPath();
+                    ctx.moveTo(i*e.w/6, e.h/2-4);
+                    ctx.lineTo(i*e.w/6, e.h/2+8);
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(i*e.w/6, e.h/2+10, 3, 0, Math.PI*2);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+        });
+
+        // ちょうちょ型敵の弾
+        ctx.fillStyle = '#333';
+        butterflyBullets.forEach(b => {
             ctx.beginPath();
-            ctx.moveTo(i*e.w/6, e.h/2-4);
-            ctx.lineTo(i*e.w/6, e.h/2+8);
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 4;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(i*e.w/6, e.h/2+10, 3, 0, Math.PI*2);
-            ctx.fillStyle = '#fff';
+            ctx.arc(b.x + b.w/2, b.y + b.h/2, b.w/2, 0, Math.PI*2);
             ctx.fill();
-        }
-        ctx.restore();
-    });
-// BGM再生
-const bgm = new Audio('assets/sounds/bgm.mp3');
+        });
 bgm.loop = true;
 bgm.volume = 0.3;
 let bgmStarted = false;
@@ -520,68 +505,24 @@ window.addEventListener('pointerdown', playBGM, { once: true });
     ctx.font = '24px sans-serif';
 
     ctx.fillText('SCORE: ' + score, 20, 40);
-    // ハイスコア
-    ctx.font = '20px sans-serif';
-    ctx.fillStyle = '#ff0';
-    ctx.fillText('HIGH SCORE: ' + (typeof highScore !== 'undefined' ? highScore : 0), 20, 70);
     // バージョン番号
     ctx.font = '16px sans-serif';
     ctx.fillStyle = '#aaa';
-    ctx.fillText('ver: ' + GAME_VERSION, 22, 95);
-
-    // ハイスコア更新メッセージ
-    if (typeof isGameOver !== 'undefined' && isGameOver && typeof showHighScoreMsg !== 'undefined' && showHighScoreMsg) {
-        ctx.save();
-        ctx.font = 'bold 48px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff0';
-        ctx.strokeStyle = '#f00';
-        ctx.lineWidth = 8;
-        ctx.strokeText('ハイスコア更新!!', canvas.width/2, canvas.height/2 - 100);
-        ctx.fillText('ハイスコア更新!!', canvas.width/2, canvas.height/2 - 100);
-        ctx.restore();
-    }
+    ctx.fillText('ver: ' + GAME_VERSION, 22, 65);
 
     // 吹き出しエフェクト
     const now = performance.now();
-    effects = effects.filter(e => {
-        if (e.type === 'explosion') {
-            return now - e.time < e.duration;
-        }
-        return now - e.time < 1000 && e.x !== undefined && e.y !== undefined;
-    });
+    effects = effects.filter(e => now - e.time < 1000 && e.x !== undefined && e.y !== undefined);
     effects.forEach(e => {
-        if (e.type === 'explosion') {
-            // 爆発アニメーション
-            const t = (now - e.time) / e.duration;
-            const r = e.size * (0.5 + t * 1.2);
-            ctx.save();
-            ctx.globalAlpha = 0.7 * (1 - t);
-            // 爆発の外側
-            ctx.beginPath();
-            ctx.arc(e.x, e.y, r, 0, Math.PI*2);
-            ctx.fillStyle = 'orange';
-            ctx.shadowColor = 'yellow';
-            ctx.shadowBlur = 24;
-            ctx.fill();
-            // 爆発の内側
-            ctx.beginPath();
-            ctx.arc(e.x, e.y, r*0.5, 0, Math.PI*2);
-            ctx.fillStyle = 'yellow';
-            ctx.shadowBlur = 0;
-            ctx.fill();
-            ctx.restore();
-        } else if (e.text) {
-            ctx.save();
-            ctx.font = 'bold 44px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = '#ff0';
-            ctx.strokeStyle = '#f00';
-            ctx.lineWidth = 6;
-            ctx.strokeText(e.text, e.x, e.y);
-            ctx.fillText(e.text, e.x, e.y);
-            ctx.restore();
-        }
+        ctx.save();
+        ctx.font = 'bold 44px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ff0';
+        ctx.strokeStyle = '#f00';
+        ctx.lineWidth = 6;
+        ctx.strokeText(e.text, e.x, e.y);
+        ctx.fillText(e.text, e.x, e.y);
+        ctx.restore();
     });
     // 画面外に出ないよう制限
     player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
@@ -633,28 +574,11 @@ function gameLoop(timestamp) {
     render();
     if (!isGameOver) {
         requestAnimationFrame(gameLoop);
-    } else {
-        // ハイスコア更新判定
-        if (score > highScore) {
-            highScore = score;
-            localStorage.setItem('highScore', highScore);
-            showHighScoreMsg = true;
-        }
-        // ゲームオーバー時にボタン表示
-        restartBtn.style.display = 'block';
     }
 }
 
 window.onload = () => {
-
     resetGame();
     window._lastTime = undefined;
     requestAnimationFrame(gameLoop);
-    restartBtn.style.display = 'none';
-    restartBtn.onclick = () => {
-        restartBtn.style.display = 'none';
-        resetGame();
-        window._lastTime = undefined;
-        requestAnimationFrame(gameLoop);
-    };
 };
