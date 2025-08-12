@@ -483,48 +483,15 @@ function render() {
             ctx.restore();
         });
 
-        // ちょうちょ型敵の弾
-        ctx.fillStyle = '#333';
-        butterflyBullets.forEach(b => {
-            ctx.beginPath();
-            ctx.arc(b.x + b.w/2, b.y + b.h/2, b.w/2, 0, Math.PI*2);
-            ctx.fill();
-        });
-bgm.loop = true;
-bgm.volume = 0.3;
-let bgmStarted = false;
-function playBGM() {
-    if (!bgmStarted) {
-        bgm.play();
-        bgmStarted = true;
-    }
-}
-window.addEventListener('pointerdown', playBGM, { once: true });
-
-    // スコア
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px sans-serif';
-
-    ctx.fillText('SCORE: ' + score, 20, 40);
-    // バージョン番号
-    ctx.font = '16px sans-serif';
-    ctx.fillStyle = '#aaa';
-    ctx.fillText('ver: ' + GAME_VERSION, 22, 65);
-
-    // 吹き出しエフェクト
-    const now = performance.now();
-    effects = effects.filter(e => now - e.time < 1000 && e.x !== undefined && e.y !== undefined);
-    effects.forEach(e => {
-        ctx.save();
-        ctx.font = 'bold 44px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ff0';
-        ctx.strokeStyle = '#f00';
-        ctx.lineWidth = 6;
-        ctx.strokeText(e.text, e.x, e.y);
-        ctx.fillText(e.text, e.x, e.y);
-        ctx.restore();
-    });
+        // ちょうちょ型敵の弾（未定義の場合はコメントアウト）
+        // ctx.fillStyle = '#333';
+        // if (typeof butterflyBullets !== 'undefined') {
+        //     butterflyBullets.forEach(b => {
+        //         ctx.beginPath();
+        //         ctx.arc(b.x + b.w/2, b.y + b.h/2, b.w/2, 0, Math.PI*2);
+        //         ctx.fill();
+        //     });
+        // }
     // 画面外に出ないよう制限
     player.x = Math.max(0, Math.min(canvas.width - player.w, player.x));
 }
