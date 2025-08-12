@@ -1,7 +1,7 @@
 {
-  "name": "my-3d-horror-game",
+  "name": "vibe-shooting",
   "version": "1.0.0",
-  "description": "A 3D horror game built with JavaScript and HTML.",
+  "description": "A shoting game built with JavaScript and HTML.",
   "main": "src/main.js",
   "scripts": {
     "start": "live-server src",
@@ -9,13 +9,13 @@
     "test": "echo 'Test step not defined'"
   },
   "keywords": [
-    "3D",
-    "horror",
+    "vibe",
+    "shooting",
     "game",
     "javascript",
     "html"
   ],
-  "author": "Your Name",
+  "author": "mmase",
   "license": "MIT",
   "dependencies": {
     "three": "^0.136.0",
@@ -24,6 +24,6 @@
   "devDependencies": {},
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/my-3d-horror-game.git"
+    "url": "https://github.com/mmase0x/vibe-shooting.git"
   }
 }
