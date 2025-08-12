@@ -417,71 +417,67 @@ function render() {
 
     // 敵
     enemies.forEach(e => {
-        // 骸骨風（丸＋目＋骨）
-        // 敵
-        enemies.forEach(e => {
+        ctx.save();
+        ctx.translate(e.x + e.w/2, e.y + e.h/2);
+        if (e.type === 'butterfly') {
+            // ちょうちょ型（羽2枚＋胴体）
             ctx.save();
-            ctx.translate(e.x + e.w/2, e.y + e.h/2);
-            if (e.type === 'butterfly') {
-                // ちょうちょ型（羽2枚＋胴体）
-                ctx.save();
-                ctx.rotate(Math.sin(e.angle)*0.5);
-                // 左羽
+            ctx.rotate(Math.sin(e.angle)*0.5);
+            // 左羽
+            ctx.beginPath();
+            ctx.ellipse(-e.w/3, 0, e.w/3, e.h/2, Math.PI/6, 0, Math.PI*2);
+            ctx.fillStyle = '#f6f';
+            ctx.globalAlpha = 0.8;
+            ctx.fill();
+            // 右羽
+            ctx.beginPath();
+            ctx.ellipse(e.w/3, 0, e.w/3, e.h/2, -Math.PI/6, 0, Math.PI*2);
+            ctx.fillStyle = '#6ff';
+            ctx.globalAlpha = 0.8;
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+            ctx.restore();
+            // 胴体
+            ctx.beginPath();
+            ctx.ellipse(0, 0, e.w/8, e.h/2.2, 0, 0, Math.PI*2);
+            ctx.fillStyle = '#333';
+            ctx.fill();
+            // 頭
+            ctx.beginPath();
+            ctx.arc(0, -e.h/2.5, e.w/7, 0, Math.PI*2);
+            ctx.fillStyle = '#222';
+            ctx.fill();
+        } else {
+            // 骸骨風（丸＋目＋骨）
+            ctx.beginPath();
+            ctx.arc(0, 0, e.w/2, 0, Math.PI*2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            // 目
+            ctx.beginPath();
+            ctx.arc(-e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
+            ctx.arc(e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
+            ctx.fillStyle = '#222';
+            ctx.fill();
+            // 骨（下）
+            for(let i=-1;i<=1;i++){
                 ctx.beginPath();
-                ctx.ellipse(-e.w/3, 0, e.w/3, e.h/2, Math.PI/6, 0, Math.PI*2);
-                ctx.fillStyle = '#f6f';
-                ctx.globalAlpha = 0.8;
-                ctx.fill();
-                // 右羽
+                ctx.moveTo(i*e.w/6, e.h/2-4);
+                ctx.lineTo(i*e.w/6, e.h/2+8);
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 4;
+                ctx.stroke();
                 ctx.beginPath();
-                ctx.ellipse(e.w/3, 0, e.w/3, e.h/2, -Math.PI/6, 0, Math.PI*2);
-                ctx.fillStyle = '#6ff';
-                ctx.globalAlpha = 0.8;
-                ctx.fill();
-                ctx.globalAlpha = 1.0;
-                ctx.restore();
-                // 胴体
-                ctx.beginPath();
-                ctx.ellipse(0, 0, e.w/8, e.h/2.2, 0, 0, Math.PI*2);
-                ctx.fillStyle = '#333';
-                ctx.fill();
-                // 頭
-                ctx.beginPath();
-                ctx.arc(0, -e.h/2.5, e.w/7, 0, Math.PI*2);
-                ctx.fillStyle = '#222';
-                ctx.fill();
-            } else {
-                // 骸骨風（丸＋目＋骨）
-                ctx.beginPath();
-                ctx.arc(0, 0, e.w/2, 0, Math.PI*2);
+                ctx.arc(i*e.w/6, e.h/2+10, 3, 0, Math.PI*2);
                 ctx.fillStyle = '#fff';
                 ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                // 目
-                ctx.beginPath();
-                ctx.arc(-e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
-                ctx.arc(e.w/6, -e.h/8, e.w/10, 0, Math.PI*2);
-                ctx.fillStyle = '#222';
-                ctx.fill();
-                // 口（削除済み）
-                // 骨（下）
-                for(let i=-1;i<=1;i++){
-                    ctx.beginPath();
-                    ctx.moveTo(i*e.w/6, e.h/2-4);
-                    ctx.lineTo(i*e.w/6, e.h/2+8);
-                    ctx.strokeStyle = '#fff';
-                    ctx.lineWidth = 4;
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.arc(i*e.w/6, e.h/2+10, 3, 0, Math.PI*2);
-                    ctx.fillStyle = '#fff';
-                    ctx.fill();
-                }
             }
-            ctx.restore();
-        });
+        }
+        ctx.restore();
+    });
 
         // ちょうちょ型敵の弾（未定義の場合はコメントアウト）
         // ctx.fillStyle = '#333';
