@@ -1,7 +1,7 @@
-# My 3D Horror Game
+# Vibe shooting Game
 
 ## Overview
-This project is a 3D horror game developed using JavaScript and HTML. The game features immersive environments, chilling sound effects, and engaging gameplay mechanics designed to provide a thrilling experience.
+This project is a shooting game developed using JavaScript and HTML. The game features immersive environments, chilling sound effects, and engaging gameplay mechanics designed to provide a thrilling experience.
 
 ## Project Structure
 ```
@@ -19,19 +19,6 @@ my-3d-horror-game
 └── README.md            # Project documentation
 ```
 
-## Installation
-1. Clone the repository:
-   ```
-   git clone <repository-url>
-   ```
-2. Navigate to the project directory:
-   ```
-   cd my-3d-horror-game
-   ```
-3. Install the dependencies:
-   ```
-   npm install
-   ```
 
 ## How to Play
 1. Open `src/index.html` in your web browser.
